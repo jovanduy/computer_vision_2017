@@ -60,8 +60,8 @@ class ParkingSpotRecognizer(object):
             called cv_image for subsequent processing """
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
-        self.binary_image = cv2.inRange(self.hsv_image, self.hsv_lb, self.hsv_ub)
-        #self.binary_image = cv2.inRange(self.hsv_image, (0,150,170), (255,255,255))
+        self.binary_image = cv2.inRange(self.hsv_image, (0,70,60), (30,255,140))
+        
         
         #left_top, right_bottom = self.sign_bounding_box()
         #left, top = left_top
