@@ -9,5 +9,5 @@
   <node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/camera/image_raw _image_transport:=compressed raw out:=/camera/image_raw" />
 
   <!-- Run the node -->
-  <node name="parking_spot_recognizer" pkg="cv_parking" type="parking.py" output="screen" />
+  <node name="parking_spot_recognizer" pkg="cv_parking" type="recognizer.py" output="screen" />
 </launch>
