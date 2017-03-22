@@ -27,35 +27,20 @@ class ParkingSpotRecognizer(object):
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
         self.binary_image = cv2.inRange(self.hsv_image, (0,70,60), (30,255,140))
-        outline = self.bounding_contour()
-        cv2.drawContours(self.cv_image,outline,-1,(0,255,0),5)
+        self.hough_lines()
         
-    def bounding_contour(self):
-        """
-        Returns
-        -------
-        (left_top, right_bottom) where left_top and right_bottom are tuples of (x_pixel, y_pixel)
-            defining topleft and bottomright corners of the bounding box
-        """
-        image = deepcopy(self.binary_image)
-        im2, contours, hierarchy = cv2.findContours(image, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-        cnt = contours[0]
+    def hough_lines(self):
+       """ This function uses the Hough Line Transform function to identify and visualize lines in our binary image."""
+       
+       lines = cv2.HoughLinesP(self.binary_image,1,np.pi/180,100,0,0)
 
-        epsilon = 0.01*cv2.arcLength(cnt,True)
-
-        approx = cv2.approxPolyDP(cnt,epsilon,True)
+       for x1,y1,x2,y2 in lines[0]:
+               cv2.line(self.cv_image,(x1,y1),(x2,y2),(0,0,255),2)
+   
+    def find_endpoints(self):
+        """This function uses the pinhole camera model to determine the endpoints of a parking spot in 3d space."""
+        pass 
         
-        print "APPROX:", approx
-        print "size of approx", len(approx)
-        return approx
-
-    def spot_detected(self):
-        #first detect whether the spot is empty
-        #then use pinhole camera method to determine surface area of the spot
-        #if surface area > threshold, return true or false,
-        #or maybe return base_link coordinates of the corners of the parking spot so the neato can align itself and then drive in
-        pass
-
     
     def run(self):
         """ The main run loop"""
