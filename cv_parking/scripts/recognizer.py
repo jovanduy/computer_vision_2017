@@ -3,11 +3,13 @@
 """ This script recognizes parking spots using opencv in ROS. """
 
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
 from copy import deepcopy
+import math
+
 
 
 class ParkingSpotRecognizer(object):
@@ -17,12 +19,15 @@ class ParkingSpotRecognizer(object):
     def __init__(self):
         """ Initialize the parking spot recognizer """
         rospy.init_node('parking_spot_recognizer')
+        rospy.Subscriber('/camera/camera_info', CameraInfo, self.process_camera)
         self.cv_image = None                        # the latest image from the camera
         self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
         cv2.namedWindow('video_window')
         self.hsv_lb = np.array([0, 70, 60]) # hsv lower bound 
         rospy.Subscriber("/camera/image_raw", Image, self.process_image)
         self.hsv_ub = np.array([30, 255, 140]) # hsv upper bound
+        self.K = None
+        self.dst = None
         
         
                 
@@ -35,10 +40,30 @@ class ParkingSpotRecognizer(object):
         self.binary_image = cv2.inRange(self.hsv_image, self.hsv_lb, self.hsv_ub)
         self.spot_delineators = self.find_delineators()
         if self.spot_delineators != None:
-            cv2.line(self.cv_image,(self.spot_delineators[0][0],self.spot_delineators[0][1]),
-                (self.spot_delineators[0][2],self.spot_delineators[0][3]),(0,255,0),2)
-            cv2.line(self.cv_image,(self.spot_delineators[1][0],self.spot_delineators[1][1]),
-                (self.spot_delineators[1][2],self.spot_delineators[1][3]),(0,255,0),2)
+            left_line = self.convert_endpoint_3D(self.spot_delineators[0])
+            right_line = self.convert_endpoint_3D(self.spot_delineators[1])
+            dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
+            self.dst = dst
+
+
+    def process_camera(self, cameramsg):
+        self.K = cameramsg.K
+        self.fy = cameramsg.K[4]
+        self.cx = cameramsg.K[2]
+        self.cy = cameramsg.K[5]
+
+    def convert_endpoint_3D(self, endpoint):
+        if self.K:
+            x = endpoint[0]
+            y = endpoint[1]
+            inverse_k = np.linalg.inv(np.asarray(self.K).reshape(3,3))
+            m = np.array([[x], [y], [1]])
+            product = np.matmul(inverse_k, m)
+            res_x = product[0][0]
+            res_y = product[1][0]
+            res_z = res_y*self.fy/y 
+            return (res_x, res_z)
+            
         
                
     def hough_lines(self):
@@ -81,6 +106,10 @@ class ParkingSpotRecognizer(object):
                 index += 1
 
         if endpoint2 != -1:
+            cv2.line(self.cv_image,(endpoint1[0],endpoint1[1]),
+                (endpoint1[2],endpoint1[3]),(0,255,0),2)
+            cv2.line(self.cv_image,(endpoint2[0],endpoint2[1]),
+                (endpoint2[2],endpoint2[3]),(0,255,0),2)
             return [endpoint1, endpoint2]
         else:
             return None
