@@ -18,7 +18,6 @@ class ParkingSpotRecognizer(object):
 
     def __init__(self):
         """ Initialize the parking spot recognizer """
-        rospy.init_node('parking_spot_recognizer')
         rospy.Subscriber('/camera/camera_info', CameraInfo, self.process_camera)
         self.cv_image = None                        # the latest image from the camera
         self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
@@ -42,10 +41,9 @@ class ParkingSpotRecognizer(object):
         if self.spot_delineators != None:
             left_line = self.convert_endpoint_3D(self.spot_delineators[0])
             right_line = self.convert_endpoint_3D(self.spot_delineators[1])
-            dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
-            self.dst = dst
-
-
+            self.dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
+            print self.dst, "\n"
+            
     def process_camera(self, cameramsg):
         self.K = cameramsg.K
         self.fy = cameramsg.K[4]
@@ -56,12 +54,15 @@ class ParkingSpotRecognizer(object):
         if self.K:
             x = endpoint[0]
             y = endpoint[1]
+            theta = math.atan(y/self.fy)
             inverse_k = np.linalg.inv(np.asarray(self.K).reshape(3,3))
             m = np.array([[x], [y], [1]])
             product = np.matmul(inverse_k, m)
             res_x = product[0][0]
-            res_y = product[1][0]
-            res_z = res_y*self.fy/y 
+            # res_y = product[1][0]
+            res_y = 0.095
+            res_z = res_y*self.fy/y
+            # res_z = res_y/math.tan(theta)
             return (res_x, res_z)
             
         
@@ -126,5 +127,6 @@ class ParkingSpotRecognizer(object):
             r.sleep()
 
 if __name__ == '__main__':
+    rospy.init_node('parking_spot_recognizer')
     node = ParkingSpotRecognizer()
     node.run()
