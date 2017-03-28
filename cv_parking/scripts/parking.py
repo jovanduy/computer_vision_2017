@@ -13,7 +13,7 @@ from recognizer import ParkingSpotRecognizer
 
 NOT_ALIGNED = 0
 ALIGNED = 1
-TURNING = 2
+PARKING = 2
 
 class ParkingAgent(object):
     """ This script will navigate the neato into a parking spot. """
@@ -26,7 +26,11 @@ class ParkingAgent(object):
         self.publisher = rospy.Publisher('/cmd_vel', Twist, queue_size = 10)
         self.twist = None
         self.status = NOT_ALIGNED 
+        self.state = None
         self.time = rospy.Time.now()
+        self.speed_param = 0.2
+        self.x_threshold = 0.03
+        self.y_threshold = 0.8
 
     
     def park(self):
@@ -72,22 +76,49 @@ class ParkingAgent(object):
 
     def stop(self):
         self.publisher.publish(Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0)))
+
+    def back(self):
+        self.publisher.publish(Twist(linear = Vector3(-self.speed_param*self.y,0,0), angular=Vector3(0,0,0)))
+
+    def forward(self):
+        self.publisher.publish(Twist(linear = Vector3(self.speed_param*self.y,0,0), angular=Vector3(0,0,0)))
         
     def run(self):
         """ The main run loop"""
         r = rospy.Rate(10)
         rospy.on_shutdown(self.stop)
+        self.state = self.stop
         while not rospy.is_shutdown():
             #detect a parking spot using the functions from our recognizer class
             #call the park function to navigate the neato into that spot
             if self.ParkingSpotRecognizer.dst:
+                x = self.ParkingSpotRecognizer.dst[0]
+                y = self.ParkingSpotRecognizer.dst[1]
+                self.x, self.y = x, y
+                if self.status == NOT_ALIGNED:
+                    if x < self.x_threshold:
+                        self.status = ALIGNED
+                    else:
+                        if y < y_threshold:
+                            self.state = self.back
+                            print "back"
+                        else:
+                            self.state = self.turn
+                            print "turn"
+                
                 if self.status == ALIGNED:
-                    print "aligned"
-                    self.park()
-                else:
-                    self.align(self.ParkingSpotRecognizer.dst[0], self.ParkingSpotRecognizer.dst[1])
-                    if self.twist and self.status != TURNING or self.status != ALIGNED:
-                        self.publisher.publish(self.twist)
+                    if y < self.y_threshold:
+                        self.status = PARKING
+                    else:
+                        self.state = self.forward 
+                        print "forward"  
+                
+                if self.status == PARKING:
+                    self.state = self.park
+                
+                print self.state
+                self.state()
+            
             else:
                 pass
             r.sleep()

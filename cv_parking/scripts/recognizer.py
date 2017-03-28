@@ -52,18 +52,17 @@ class ParkingSpotRecognizer(object):
 
     def convert_endpoint_3D(self, endpoint):
         if self.K:
-            x = endpoint[0]
-            y = endpoint[1]
-            theta = math.atan(y/self.fy)
-            inverse_k = np.linalg.inv(np.asarray(self.K).reshape(3,3))
-            m = np.array([[x], [y], [1]])
-            product = np.matmul(inverse_k, m)
-            res_x = product[0][0]
-            # res_y = product[1][0]
-            res_y = 0.095
-            res_z = res_y*self.fy/y
-            # res_z = res_y/math.tan(theta)
-            return (res_x, res_z)
+            point1 = self.calc_XZ(endpoint[0], endpoint[1])
+            return point1
+
+    def calc_XZ(self, x, y):
+        inverse_k = np.linalg.inv(np.asarray(self.K).reshape(3,3))
+        m = np.array([[x], [y], [1]])
+        product = np.matmul(inverse_k, m)
+        res_x = product[0][0]
+        res_y = 0.13
+        res_z = res_y*self.fy/(y-self.cy)
+        return (res_x, res_z)
             
         
                
