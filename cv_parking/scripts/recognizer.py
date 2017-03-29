@@ -42,7 +42,7 @@ class ParkingSpotRecognizer(object):
             left_line = self.convert_endpoint_3D(self.spot_delineators[0])
             right_line = self.convert_endpoint_3D(self.spot_delineators[1])
             self.dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
-            print self.dst, "\n"
+            # print self.dst, "\n"
             
     def process_camera(self, cameramsg):
         self.K = cameramsg.K

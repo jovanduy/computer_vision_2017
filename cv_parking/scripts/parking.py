@@ -14,6 +14,7 @@ from recognizer import ParkingSpotRecognizer
 NOT_ALIGNED = 0
 ALIGNED = 1
 PARKING = 2
+PARKED = 3
 
 class ParkingAgent(object):
     """ This script will navigate the neato into a parking spot. """
@@ -28,15 +29,22 @@ class ParkingAgent(object):
         self.status = NOT_ALIGNED 
         self.state = None
         self.time = rospy.Time.now()
-        self.speed_param = 0.2
-        self.x_threshold = 0.03
+        self.speed_param = 0.05
+        self.x_threshold = 0.02
         self.y_threshold = 0.8
 
     
     def park(self):
         #send twist to move the neato forward
         #stop moving forward when lidar detects sufficiently close wall
-        self.twist = Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0))
+        self.time = rospy.Time.now()
+        self.twist = Twist(linear = Vector3(1,0,0), angular=Vector3(0,0,0))
+        self.publisher.publish(self.twist)
+        while (rospy.Time.now() - self.time <= rospy.Duration(2.5)):
+            pass
+        print "stopping"
+        self.stop()
+        self.status = PARKED
 
 
     def align(self, x, y):
@@ -61,18 +69,20 @@ class ParkingAgent(object):
                 self.twist = Twist(linear = Vector3(-y*0.8,0,0), angular=Vector3(0,0,0))
 
     
-    def turn(self, x, y):
+    def turn(self):
+        x, y = self.x, self.y
+        print x, y
         turn_param = 4
-        speed_param = 0.08
-        self.twist = Twist(linear = Vector3(y*speed_param,0,0), angular=Vector3(0,0,x*turn_param))
-        while (rospy.Time.now() - self.time <= rospy.Duration(0.5)):
-            pass
+        self.twist = Twist(linear = Vector3(y*self.speed_param,0,0), angular=Vector3(0,0,-x*turn_param))
+        while (rospy.Time.now() - self.time <= rospy.Duration(1)):
+            self.publisher.publish(self.twist)
         self.time = rospy.Time.now()
-        self.twist = Twist(linear = Vector3(y*speed_param,0,0), angular=Vector3(0,0,-x*turn_param))
-        while (rospy.Time.now() - self.time <= rospy.Duration(0.5)):
-            pass
+        self.twist = Twist(linear = Vector3(y*self.speed_param*0.5,0,0), angular=Vector3(0,0,x*turn_param))
+        while (rospy.Time.now() - self.time <= rospy.Duration(0.8)):
+            print "turning back"
+            self.publisher.publish(self.twist)
         self.twist = Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0))
-
+        self.publisher.publish(self.twist)
 
     def stop(self):
         self.publisher.publish(Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0)))
@@ -92,6 +102,8 @@ class ParkingAgent(object):
             #detect a parking spot using the functions from our recognizer class
             #call the park function to navigate the neato into that spot
             if self.ParkingSpotRecognizer.dst:
+                cv2.imshow('video_window', self.ParkingSpotRecognizer.cv_image)
+                cv2.imshow('binary', self.ParkingSpotRecognizer.binary_image)
                 x = self.ParkingSpotRecognizer.dst[0]
                 y = self.ParkingSpotRecognizer.dst[1]
                 self.x, self.y = x, y
@@ -99,7 +111,7 @@ class ParkingAgent(object):
                     if x < self.x_threshold:
                         self.status = ALIGNED
                     else:
-                        if y < y_threshold:
+                        if y < self.y_threshold:
                             self.state = self.back
                             print "back"
                         else:
@@ -109,14 +121,19 @@ class ParkingAgent(object):
                 if self.status == ALIGNED:
                     if y < self.y_threshold:
                         self.status = PARKING
+                        print "parked"
                     else:
                         self.state = self.forward 
                         print "forward"  
                 
                 if self.status == PARKING:
+                    print "parking"
                     self.state = self.park
+
+                if self.status == PARKED:
+                    self.state = self.stop
+                    print "Done parking!"
                 
-                print self.state
                 self.state()
             
             else:
