@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from copy import deepcopy
 import math
+from matplotlib import pyplot as plt
 
 
 
@@ -20,6 +21,7 @@ class ParkingSpotRecognizer(object):
         """ Initialize the parking spot recognizer """
         rospy.Subscriber('/camera/camera_info', CameraInfo, self.process_camera)
         self.cv_image = None                        # the latest image from the camera
+        self.crop_img = None
         self.bridge = CvBridge()                    # used to convert ROS messages to OpenCV
         cv2.namedWindow('video_window')
         self.hsv_lb = np.array([0, 70, 60]) # hsv lower bound 
@@ -27,6 +29,7 @@ class ParkingSpotRecognizer(object):
         self.hsv_ub = np.array([30, 255, 140]) # hsv upper bound
         self.K = None
         self.dst = None
+        self.isImg = False
         
         
                 
@@ -34,13 +37,15 @@ class ParkingSpotRecognizer(object):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image for subsequent processing """
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+        self.img_copy = deepcopy(self.cv_image)
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
-        #self.binary_image = cv2.inRange(self.hsv_image, (0,70,60), (30,255,140))
         self.binary_image = cv2.inRange(self.hsv_image, self.hsv_lb, self.hsv_ub)
         self.spot_delineators = self.find_delineators()
         if self.spot_delineators != None:
             left_line = self.convert_endpoint_3D(self.spot_delineators[0])
             right_line = self.convert_endpoint_3D(self.spot_delineators[1])
+            # print self.spot_delineators
+            self.is_empty(self.spot_delineators[0], self.spot_delineators[1],self.endpoint1, self.endpoint2)
             self.dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
             # print self.dst, "\n"
             
@@ -72,14 +77,26 @@ class ParkingSpotRecognizer(object):
         res_z = res_y*self.fy/(y-self.cy)
         return (res_x, res_z)
             
-        
+    def is_empty(self, left, right, end1, end2):
+        if not self.cv_image is None:
+            img = self.img_copy
+            self.crop_img =  img[end1[3]:left[1], left[2]:right[2]] if end1[3] < end2[3] else img[end2[3]:left[1], left[2]:right[2]]
+            edges = cv2.Canny(self.crop_img,100,200)   
+            if not self.isImg:
+                plt.subplot(121),plt.imshow(img,cmap = 'gray')
+                plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+                plt.subplot(122),plt.imshow(edges,cmap = 'gray')
+                plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
+                plt.show(False)  
+                self.isImg = True 
+
                
     def hough_lines(self):
        """ This function uses the Hough Line Transform function to identify and visualize lines in our binary image."""
        
        lines = cv2.HoughLinesP(self.binary_image, rho=5, theta=np.deg2rad(10), threshold=100, minLineLength=25, maxLineGap=0)
        lines_filtered = []
-       if lines != None:
+       if not lines is None:
             for x1,y1,x2,y2 in lines[0]:
                 if y1 >100 and y2 > 100 and abs(y1 - y2) > 10:
                     # if the line is actually on the ground (not noise)
@@ -96,10 +113,12 @@ class ParkingSpotRecognizer(object):
             return
         # sorting by left to right in the image
         lines.sort(key = lambda x: x[0])
-        
+        spot_delineator1 = lines[0]
+        spot_delineator2 = -1
+
         # first line should correspond to the left-line (the left dilineator) of the leftmost spot
         endpoint1 = lines[0]
-        endpoint2 = -1
+        endpoint2 = None
         leftmostx = lines[0][0]
         x_range = 120
         index = 1
@@ -107,28 +126,34 @@ class ParkingSpotRecognizer(object):
         # find line with lowest y1 value corresponds to the leftmost possible x1
         # value for this dilineator so we know the "bottom" point of this dilineator
         while index < len(lines) and lines[index][0] - leftmostx < x_range :
-            if endpoint1[1] < lines[index][1]:
+            if spot_delineator1[1] < lines[index][1]:
+                spot_delineator1 = lines[index]
+            if endpoint1[3] > lines[index][3]:
                 endpoint1 = lines[index]
             index += 1
 
         # assume that the next line with x1 more than x_range pixels away
         # from the left dilineator is part of the right dilineator of the same spot
         if index < len(lines):
+            spot_delineator2 = lines[index]
             endpoint2 = lines[index]
-            leftmostx = endpoint2[0]
+            leftmostx = spot_delineator2[0]
             
             while index < len(lines) and lines[index][0] - leftmostx < x_range:
-                if endpoint2[1] < lines[index][1]:
+                if spot_delineator2[1] < lines[index][1]:
+                    spot_delineator2 = lines[index]
+                if endpoint2[3] > lines[index][3]:
                     endpoint2 = lines[index]
                 index += 1
 
-        if endpoint2 != -1:
-            # a spot was identified: two dilineators were found
-            cv2.line(self.cv_image,(endpoint1[0],endpoint1[1]),
-                (endpoint1[2],endpoint1[3]),(0,255,0),2)
-            cv2.line(self.cv_image,(endpoint2[0],endpoint2[1]),
-                (endpoint2[2],endpoint2[3]),(0,255,0),2)
-            return [endpoint1, endpoint2]
+        if spot_delineator2 != -1:
+            self.endpoint1 = endpoint1
+            self.endpoint2 = endpoint2
+            cv2.line(self.cv_image,(spot_delineator1[0],spot_delineator1[1]),
+                (spot_delineator1[2],spot_delineator1[3]),(0,255,0),2)
+            cv2.line(self.cv_image,(spot_delineator2[0],spot_delineator2[1]),
+                (spot_delineator2[2],spot_delineator2[3]),(0,255,0),2)
+            return [spot_delineator1, spot_delineator2]
         else:
             # all lines belong to the same cluster; a spot was not found
             return None
@@ -141,6 +166,8 @@ class ParkingSpotRecognizer(object):
                 # creates a window and displays the image for X milliseconds
                 cv2.imshow('video_window', self.cv_image)
                 cv2.imshow('binary', self.binary_image)
+                if not self.crop_img is None:
+                    cv2.imshow('crop_img', self.crop_img)
                 cv2.waitKey(5)
             r.sleep()
 

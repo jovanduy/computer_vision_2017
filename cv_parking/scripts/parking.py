@@ -40,7 +40,7 @@ class ParkingAgent(object):
         self.time = rospy.Time.now()
         self.twist = Twist(linear = Vector3(1,0,0), angular=Vector3(0,0,0))
         self.publisher.publish(self.twist)
-        while (rospy.Time.now() - self.time <= rospy.Duration(2.5)):
+        while (rospy.Time.now() - self.time <= rospy.Duration(2.7)):
             pass
         print "stopping"
         self.stop()
@@ -104,6 +104,7 @@ class ParkingAgent(object):
             if self.ParkingSpotRecognizer.dst:
                 cv2.imshow('video_window', self.ParkingSpotRecognizer.cv_image)
                 cv2.imshow('binary', self.ParkingSpotRecognizer.binary_image)
+                cv2.waitKey(5)
                 x = self.ParkingSpotRecognizer.dst[0]
                 y = self.ParkingSpotRecognizer.dst[1]
                 self.x, self.y = x, y
