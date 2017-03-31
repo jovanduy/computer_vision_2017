@@ -45,12 +45,20 @@ class ParkingSpotRecognizer(object):
             # print self.dst, "\n"
             
     def process_camera(self, cameramsg):
+        """ Callback method to store camera parameters from a 
+            camera info message"""
         self.K = cameramsg.K
         self.fy = cameramsg.K[4]
         self.cx = cameramsg.K[2]
         self.cy = cameramsg.K[5]
 
     def convert_endpoint_3D(self, endpoint):
+        """ Convert an image point to 3D coordinates relative to
+            the camera
+
+            endpoint: (x,y) of pixel to be converted from image
+            returns: (X,Z) of point's 3D distance from the center
+                     of the camera"""
         if self.K:
             point1 = self.calc_XZ(endpoint[0], endpoint[1])
             return point1
@@ -74,6 +82,8 @@ class ParkingSpotRecognizer(object):
        if lines != None:
             for x1,y1,x2,y2 in lines[0]:
                 if y1 >100 and y2 > 100 and abs(y1 - y2) > 10:
+                    # if the line is actually on the ground (not noise)
+                    # and is more than 10 pixels vertically, include it
                     cv2.line(self.cv_image,(x1,y1),(x2,y2),(0,0,255),2)
                     lines_filtered.append((x1,y1,x2,y2))
        return lines_filtered
@@ -86,16 +96,23 @@ class ParkingSpotRecognizer(object):
             return
         # sorting by left to right in the image
         lines.sort(key = lambda x: x[0])
+        
+        # first line should correspond to the left-line (the left dilineator) of the leftmost spot
         endpoint1 = lines[0]
         endpoint2 = -1
         leftmostx = lines[0][0]
         x_range = 120
         index = 1
+
+        # find line with lowest y1 value corresponds to the leftmost possible x1
+        # value for this dilineator so we know the "bottom" point of this dilineator
         while index < len(lines) and lines[index][0] - leftmostx < x_range :
             if endpoint1[1] < lines[index][1]:
                 endpoint1 = lines[index]
             index += 1
 
+        # assume that the next line with x1 more than x_range pixels away
+        # from the left dilineator is part of the right dilineator of the same spot
         if index < len(lines):
             endpoint2 = lines[index]
             leftmostx = endpoint2[0]
@@ -106,12 +123,14 @@ class ParkingSpotRecognizer(object):
                 index += 1
 
         if endpoint2 != -1:
+            # a spot was identified: two dilineators were found
             cv2.line(self.cv_image,(endpoint1[0],endpoint1[1]),
                 (endpoint1[2],endpoint1[3]),(0,255,0),2)
             cv2.line(self.cv_image,(endpoint2[0],endpoint2[1]),
                 (endpoint2[2],endpoint2[3]),(0,255,0),2)
             return [endpoint1, endpoint2]
         else:
+            # all lines belong to the same cluster; a spot was not found
             return None
 
     def run(self):
