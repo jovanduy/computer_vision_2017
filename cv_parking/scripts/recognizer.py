@@ -29,7 +29,10 @@ class ParkingSpotRecognizer(object):
         self.hsv_ub = np.array([30, 255, 140]) # hsv upper bound
         self.K = None
         self.dst = None
-        self.isImg = False
+        self.is_spot_occupied = None
+        self.occupied_checks = []
+        self.start_time = rospy.Time.now()
+        # self.isImg = False
         
         
                 
@@ -41,13 +44,19 @@ class ParkingSpotRecognizer(object):
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
         self.binary_image = cv2.inRange(self.hsv_image, self.hsv_lb, self.hsv_ub)
         self.spot_delineators = self.find_delineators()
+
         if self.spot_delineators != None:
             left_line = self.convert_endpoint_3D(self.spot_delineators[0])
             right_line = self.convert_endpoint_3D(self.spot_delineators[1])
-            # print self.spot_delineators
-            self.is_empty(self.spot_delineators[0], self.spot_delineators[1],self.endpoint1, self.endpoint2)
-            self.dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
-            # print self.dst, "\n"
+            if rospy.Time.now() - self.start_time <= rospy.Duration(3):
+                self.is_empty(self.spot_delineators[0], self.spot_delineators[1],self.endpoint1, self.endpoint2)
+            else:
+                if self.is_spot_occupied is None:
+                    if len(self.occupied_checks) != 0:
+                        percentage = float(sum(self.occupied_checks))/len(self.occupied_checks)
+                        self.is_spot_occupied = percentage > 0.9
+                else:
+                    self.dst = ((left_line[0] + right_line[0])/2 , (left_line[1] + right_line[1])/2)
             
     def process_camera(self, cameramsg):
         """ Callback method to store camera parameters from a 
@@ -82,13 +91,15 @@ class ParkingSpotRecognizer(object):
             img = self.img_copy
             self.crop_img =  img[end1[3]:left[1], left[2]:right[2]] if end1[3] < end2[3] else img[end2[3]:left[1], left[2]:right[2]]
             edges = cv2.Canny(self.crop_img,100,200)   
-            if not self.isImg:
-                plt.subplot(121),plt.imshow(img,cmap = 'gray')
-                plt.title('Original Image'), plt.xticks([]), plt.yticks([])
-                plt.subplot(122),plt.imshow(edges,cmap = 'gray')
-                plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
-                plt.show(False)  
-                self.isImg = True 
+            num_edge = np.count_nonzero(edges)
+            self.occupied_checks.append(num_edge > 200)
+            # if not self.isImg:
+            #     plt.subplot(121),plt.imshow(img,cmap = 'gray')
+            #     plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+            #     plt.subplot(122),plt.imshow(edges,cmap = 'gray')
+            #     plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
+            #     plt.show(False)  
+            #     self.isImg = True 
 
                
     def hough_lines(self):
@@ -166,8 +177,8 @@ class ParkingSpotRecognizer(object):
                 # creates a window and displays the image for X milliseconds
                 cv2.imshow('video_window', self.cv_image)
                 cv2.imshow('binary', self.binary_image)
-                if not self.crop_img is None:
-                    cv2.imshow('crop_img', self.crop_img)
+                # if not self.crop_img is None:
+                #     cv2.imshow('crop_img', self.crop_img)
                 cv2.waitKey(5)
             r.sleep()
 

@@ -29,7 +29,7 @@ class ParkingAgent(object):
         self.status = NOT_ALIGNED 
         self.state = None
         self.time = rospy.Time.now()
-        self.speed_param = 0.05
+        self.speed_param = 0.07
         self.x_threshold = 0.02
         self.y_threshold = 0.8
 
@@ -40,7 +40,7 @@ class ParkingAgent(object):
         self.time = rospy.Time.now()
         self.twist = Twist(linear = Vector3(1,0,0), angular=Vector3(0,0,0))
         self.publisher.publish(self.twist)
-        while (rospy.Time.now() - self.time <= rospy.Duration(2.7)):
+        while (rospy.Time.now() - self.time <= rospy.Duration(2.4)):
             pass
         print "stopping"
         self.stop()
@@ -71,24 +71,36 @@ class ParkingAgent(object):
     
     def turn(self):
         x, y = self.x, self.y
-        print x, y
         turn_param = 4
-        self.twist = Twist(linear = Vector3(y*self.speed_param,0,0), angular=Vector3(0,0,-x*turn_param))
+        self.time = rospy.Time.now()
+        self.twist = Twist(linear = Vector3(y*self.speed_param*15*abs(x),0,0), angular=Vector3(0,0,-x*turn_param*1.1))
         while (rospy.Time.now() - self.time <= rospy.Duration(1)):
             self.publisher.publish(self.twist)
         self.time = rospy.Time.now()
-        self.twist = Twist(linear = Vector3(y*self.speed_param*0.5,0,0), angular=Vector3(0,0,x*turn_param))
-        while (rospy.Time.now() - self.time <= rospy.Duration(0.8)):
-            print "turning back"
+        self.twist = Twist(linear = Vector3(y*self.speed_param*3*abs(x),0,0), angular=Vector3(0,0,x*turn_param))
+        while (rospy.Time.now() - self.time <= rospy.Duration(0.95)):
             self.publisher.publish(self.twist)
         self.twist = Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0))
         self.publisher.publish(self.twist)
+
+    # def turn(self, x, y):
+    #     turn_param = 4
+    #     self.time = rospy.Time.now()
+    #     self.twist = Twist(linear = Vector3(y*self.speed_param*1.5,0,0), angular=Vector3(0,0,-x*turn_param))
+    #     while (rospy.Time.now() - self.time <= rospy.Duration(1)):
+    #         self.publisher.publish(self.twist)
+    #     self.time = rospy.Time.now()
+    #     self.twist = Twist(linear = Vector3(y*self.speed_param*0.3,0,0), angular=Vector3(0,0,x*turn_param))
+    #     while (rospy.Time.now() - self.time <= rospy.Duration(0.9)):
+    #         self.publisher.publish(self.twist)
+    #     self.twist = Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0))
+    #     self.publisher.publish(self.twist)
 
     def stop(self):
         self.publisher.publish(Twist(linear = Vector3(0,0,0), angular=Vector3(0,0,0)))
 
     def back(self):
-        self.publisher.publish(Twist(linear = Vector3(-self.speed_param*self.y,0,0), angular=Vector3(0,0,0)))
+        self.publisher.publish(Twist(linear = Vector3(-self.speed_param*self.y*2,0,0), angular=Vector3(0,0,0)))
 
     def forward(self):
         self.publisher.publish(Twist(linear = Vector3(self.speed_param*self.y,0,0), angular=Vector3(0,0,0)))
@@ -99,48 +111,60 @@ class ParkingAgent(object):
         rospy.on_shutdown(self.stop)
         self.state = self.stop
         while not rospy.is_shutdown():
-            #detect a parking spot using the functions from our recognizer class
-            #call the park function to navigate the neato into that spot
-            if self.ParkingSpotRecognizer.dst:
-                cv2.imshow('video_window', self.ParkingSpotRecognizer.cv_image)
-                cv2.imshow('binary', self.ParkingSpotRecognizer.binary_image)
-                cv2.waitKey(5)
-                x = self.ParkingSpotRecognizer.dst[0]
-                y = self.ParkingSpotRecognizer.dst[1]
-                self.x, self.y = x, y
-                if self.status == NOT_ALIGNED:
-                    if x < self.x_threshold:
-                        self.status = ALIGNED
-                    else:
-                        if y < self.y_threshold:
-                            self.state = self.back
-                            print "back"
-                        else:
-                            self.state = self.turn
-                            print "turn"
-                
-                if self.status == ALIGNED:
-                    if y < self.y_threshold:
-                        self.status = PARKING
-                        print "parked"
-                    else:
-                        self.state = self.forward 
-                        print "forward"  
-                
-                if self.status == PARKING:
-                    print "parking"
-                    self.state = self.park
-
-                if self.status == PARKED:
-                    self.state = self.stop
-                    print "Done parking!"
-                
-                self.state()
-            
-            else:
+            if self.ParkingSpotRecognizer.is_spot_occupied is None:
+                print "Checking whether the spot is empty."
+            if self.ParkingSpotRecognizer.is_spot_occupied is None:
                 pass
+            else:
+                if self.ParkingSpotRecognizer.is_spot_occupied:
+                    print "Spot is occupied! Choose a different spot."
+                    rospy.signal_shutdown("Spot is occupied! Choose a different spot.")
+                #detect a parking spot using the functions from our recognizer class
+                #call the park function to navigate the neato into that spot
+                else:
+                    if self.ParkingSpotRecognizer.dst:
+                        cv2.imshow('video_window', self.ParkingSpotRecognizer.cv_image)
+                        cv2.imshow('binary', self.ParkingSpotRecognizer.binary_image)
+                        cv2.waitKey(5)
+                        x = self.ParkingSpotRecognizer.dst[0]
+                        y = self.ParkingSpotRecognizer.dst[1]
+                        self.x, self.y = x, y
+                        if self.status == NOT_ALIGNED:
+                            if abs(x) < self.x_threshold:
+                                self.status = ALIGNED
+                            else:
+                                if y < self.y_threshold:
+                                    self.state = self.back
+                                    print "back"
+                                else:
+                                    self.state = self.turn
+                                    print "turn"
+                        
+                        if self.status == ALIGNED:
+                            if y < self.y_threshold:
+                                self.status = PARKING
+                                print "parked"
+                            else:
+                                self.state = self.forward 
+                                print "forward"  
+                        
+                        if self.status == PARKING:
+                            print "parking"
+                            self.state = self.park
+
+                        if self.status == PARKED:
+                            self.state = self.stop
+                            print "Done parking!"
+                            rospy.signal_shutdown("Done parking.")
+
+                        self.state()
+                    
+                    else:
+                        pass
             r.sleep()
 
 if __name__ == '__main__':
     node = ParkingAgent()
     node.run()
+    # node.turn(0.1352527682466631, 2.247034385154258)
+
