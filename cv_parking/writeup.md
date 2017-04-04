@@ -6,12 +6,12 @@ We are interested in developing a computer vision algorithm to autonomously park
 
 ## Videos
 
-https://www.youtube.com/watch?v=geigUN9vyXQ
-https://www.youtube.com/watch?v=1slSgLVTuV4
-https://www.youtube.com/watch?v=HQJLs_dqFwY
-https://www.youtube.com/watch?v=4AjAjaIdMoo
-https://www.youtube.com/watch?v=R3aok6OM1jI
-https://www.youtube.com/watch?v=6s39yf8nm-c&feature=youtu.be
+https://www.youtube.com/watch?v=geigUN9vyXQ <br />
+https://www.youtube.com/watch?v=1slSgLVTuV4 <br />
+https://www.youtube.com/watch?v=HQJLs_dqFwY <br />
+https://www.youtube.com/watch?v=4AjAjaIdMoo <br />
+https://www.youtube.com/watch?v=R3aok6OM1jI <br />
+https://www.youtube.com/watch?v=6s39yf8nm-c&feature=youtu.be <br />
 
 ## System description: basic components and algorithms
 ![system diagram](imgs/system_diagram.png)
