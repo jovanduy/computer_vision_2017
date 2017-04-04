@@ -5,12 +5,13 @@ Kim Asenbeck, Jason Lan, Jordan Van Duyne
 We are interested in developing a computer vision algorithm to autonomously park a “vehicle.” Our plan is to program a Neato to identify an open parking spot and navigate into the spot.
 
 ## Videos
-
+Camera View: <br />
 https://www.youtube.com/watch?v=geigUN9vyXQ <br />
 https://www.youtube.com/watch?v=1slSgLVTuV4 <br />
 https://www.youtube.com/watch?v=HQJLs_dqFwY <br />
 https://www.youtube.com/watch?v=4AjAjaIdMoo <br />
 https://www.youtube.com/watch?v=R3aok6OM1jI <br />
+Robot View: <br />
 https://www.youtube.com/watch?v=6s39yf8nm-c&feature=youtu.be <br />
 
 ## System description: basic components and algorithms
