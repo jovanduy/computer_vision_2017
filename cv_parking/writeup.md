@@ -11,6 +11,7 @@ https://www.youtube.com/watch?v=1slSgLVTuV4
 https://www.youtube.com/watch?v=HQJLs_dqFwY
 https://www.youtube.com/watch?v=4AjAjaIdMoo
 https://www.youtube.com/watch?v=R3aok6OM1jI
+https://www.youtube.com/watch?v=6s39yf8nm-c&feature=youtu.be
 
 ## System description: basic components and algorithms
 ![system diagram](imgs/system_diagram.png)
