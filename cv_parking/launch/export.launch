@@ -1,0 +1,12 @@
+<launch>
+		
+	<!-- Run the rosbag -->
+	<node pkg="rosbag" type="play" name="rosbag" args="$(find cv_parking)/bags/left-back.bag"/>
+	
+	<!-- Decompress bagged camera images -->
+  	<node name="republish" type="republish" pkg="image_transport" output="screen" args="compressed in:=/camera/image_raw _image_transport:=compressed raw out:=/camera/image_raw" />
+	
+	<node name="extract" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="ROS_HOME">
+		<remap from="image" to="/camera/image_raw"/>
+	</node>
+</launch>
