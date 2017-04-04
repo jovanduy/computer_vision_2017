@@ -4,6 +4,14 @@ Kim Asenbeck, Jason Lan, Jordan Van Duyne
 ## Project Goal
 We are interested in developing a computer vision algorithm to autonomously park a “vehicle.” Our plan is to program a Neato to identify an open parking spot and navigate into the spot.
 
+## Videos
+
+https://www.youtube.com/watch?v=geigUN9vyXQ
+https://www.youtube.com/watch?v=1slSgLVTuV4
+https://www.youtube.com/watch?v=HQJLs_dqFwY
+https://www.youtube.com/watch?v=4AjAjaIdMoo
+https://www.youtube.com/watch?v=R3aok6OM1jI
+
 ## System description: basic components and algorithms
 ![system diagram](imgs/system_diagram.png)
 
